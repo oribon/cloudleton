@@ -1,0 +1,71 @@
+version: "3.0"
+services:
+
+  haproxy:
+    image: haproxy:latest
+    volumes:
+      - ./haproxy/cfg:/usr/local/etc/haproxy
+      - ./haproxy/certs:/etc/certs
+    ports:
+      - 443:443
+      - 80:80 
+    networks:
+      - cloudneton
+    depends_on:
+      - pypi
+      - devdocs
+      - wiki
+
+  pypi:
+    image: pypiserver/pypiserver:latest
+    volumes:
+      - /data/PIP_DATA:/data/packages
+    networks:
+      - cloudneton
+
+  devdocs:
+    image: devdocs/devdocs:v2.8.3
+    networks:
+      - cloudneton
+
+  wikidb:
+    image: postgres:11-alpine
+    environment:
+      POSTGRES_DB: wiki
+      POSTGRES_PASSWORD: ""
+      POSTGRES_USER: ""
+    volumes:
+      - /pg_data:/var/lib/postgresql/data
+    networks:
+      - cloudneton
+
+  wiki:
+    image: requarks/wiki:2
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: wikidb
+      DB_PORT: 5432
+      DB_USER: ""
+      DB_PASS: ""
+      DB_NAME: wiki
+    volumes:
+      - ./wikijs/sideload:/wiki/data/sideload:rw
+      - ./wikijs/data.yml:/wiki/server/app/data.yml:rw
+      - /etc/pki/tls/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt
+      - /data/WIKI_DATA/:/backup_folder/
+    networks:
+      - cloudneton
+    depends_on:
+      - wikidb
+
+  pushon:
+    image: pushon:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/pki/tls/certs/ca-bundle.crt:/etc/ssl/certs/ca-certificates.crt:rw
+    networks:
+      - cloudneton
+
+networks:
+  cloudneton:
+    driver: bridge
